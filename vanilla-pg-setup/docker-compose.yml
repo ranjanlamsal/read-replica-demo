@@ -1,0 +1,34 @@
+
+services:
+  pg_primary:
+    image: postgres:16
+    container_name: primary
+    environment:
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    networks:
+      - pgnet
+    volumes:
+      - primary_data:/var/lib/postgresql/data
+
+  pg_replica:
+    image: postgres:16
+    container_name: replica
+    environment:
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5433:5432"
+    networks:
+      - pgnet
+    volumes:
+      - replica_data:/var/lib/postgresql/data
+
+networks:
+  pgnet:
+    driver: bridge
+
+volumes: 
+  primary_data: 
+  replica_data:
+  

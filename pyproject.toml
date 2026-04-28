@@ -1,0 +1,11 @@
+[project]
+name = "read-replica-demo"
+version = "0.1.0"
+requires-python = ">=3.11"
+dependencies = [
+    "django==4.2.9",
+    "djangorestframework==3.14.0",
+    "faker==22.0.0",
+    "psycopg[binary]==3.2.9",
+    "python-dotenv==1.0.0",
+]

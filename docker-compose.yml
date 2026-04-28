@@ -1,0 +1,147 @@
+services:
+  postgres_master:
+    image: postgres:16
+    container_name: pg_master
+    environment:
+      POSTGRES_DB: library_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - pg_master_data:/var/lib/postgresql/data
+      # Placed in initdb.d — PostgreSQL runs it automatically on first boot.
+      - ./init-master.sh:/docker-entrypoint-initdb.d/init-master.sh
+    ports:
+      - "5432:5432"
+    networks:
+      - db_network
+    command: >
+      postgres
+        -c wal_level=replica
+        -c max_wal_senders=10
+        -c wal_keep_size=64
+    # pg_isready returns 0 only when PostgreSQL is accepting connections.
+    # Replicas wait for this before running pg_basebackup.
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d library_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  postgres_replica_1:
+    image: postgres:16
+    container_name: pg_replica_1
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      MASTER_DB_HOST: postgres_master
+      REPLICA_INDEX: 1
+    volumes:
+      - pg_replica_1_data:/var/lib/postgresql/data
+      - ./init-replica.sh:/init-replica.sh
+    ports:
+      - "5433:5432"
+    networks:
+      - db_network
+    entrypoint: ["/bin/bash", "/init-replica.sh"]
+    depends_on:
+      postgres_master:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  postgres_replica_2:
+    image: postgres:16
+    container_name: pg_replica_2
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      MASTER_DB_HOST: postgres_master
+      REPLICA_INDEX: 2
+    volumes:
+      - pg_replica_2_data:/var/lib/postgresql/data
+      - ./init-replica.sh:/init-replica.sh
+    ports:
+      - "5434:5432"
+    networks:
+      - db_network
+    entrypoint: ["/bin/bash", "/init-replica.sh"]
+    depends_on:
+      postgres_master:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  postgres_replica_3:
+    image: postgres:16
+    container_name: pg_replica_3
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      MASTER_DB_HOST: postgres_master
+      REPLICA_INDEX: 3
+    volumes:
+      - pg_replica_3_data:/var/lib/postgresql/data
+      - ./init-replica.sh:/init-replica.sh
+    ports:
+      - "5435:5432"
+    networks:
+      - db_network
+    entrypoint: ["/bin/bash", "/init-replica.sh"]
+    depends_on:
+      postgres_master:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  web:
+      build: .
+      container_name: django_app
+      command: >
+        sh -c "uv run python manage.py makemigrations &&
+                uv run python manage.py migrate &&
+                uv run python manage.py populate &&
+                uv run python manage.py runserver 0.0.0.0:8000"
+      volumes:
+        - .:/app
+        - venv_data:/app/.venv
+      ports:
+        - "8000:8000"
+      networks:
+        - db_network
+      depends_on:
+        postgres_master:
+          condition: service_healthy
+        postgres_replica_1:
+          condition: service_healthy
+        postgres_replica_2:
+          condition: service_healthy
+        postgres_replica_3:
+          condition: service_healthy
+      environment:
+          PRIMARY_HOST: postgres_master
+          PRIMARY_PORT: 5432
+          REPLICA_HOSTS: postgres_replica_1,postgres_replica_2,postgres_replica_3
+          REPLICA_PORT: 5432
+          DB_NAME: library_db
+          DB_USER: postgres
+          DB_PASSWORD: postgres
+
+networks:
+  db_network:
+    driver: bridge
+
+volumes:
+  pg_master_data:
+  pg_replica_1_data:
+  pg_replica_2_data:
+  pg_replica_3_data:
+  venv_data:
