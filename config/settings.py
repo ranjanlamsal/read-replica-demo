@@ -131,7 +131,7 @@ for i, host in enumerate(_replica_hosts, start=1):
 
  
 # Register our custom router
-DATABASE_ROUTERS = ["config.db_router_round_robin.PrimaryReplicaRouter"]
+DATABASE_ROUTERS = ["config.db_router.PrimaryReplicaRouter"]
  
 REST_FRAMEWORK = {
     "DEFAULT_RENDERER_CLASSES": ["rest_framework.renderers.JSONRenderer"],
